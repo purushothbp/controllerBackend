@@ -1,11 +1,13 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const uuid = require('uuid');
 
 const userSchema = new mongoose.Schema({
+  uuid: { type: String, default: uuid.v4, unique: true },
   username: { type: String },
   email: { type: String, required: true, unique: true },
   password: { type: String },
-  googleId: { type: String, unique: true },
+  role: { type: String, enum: ['admin', 'learner', 'guest'], default: 'guest' }
 });
 
 userSchema.pre('save', async function (next) {

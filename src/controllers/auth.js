@@ -1,44 +1,41 @@
 const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/users');
 const jwt = require('jsonwebtoken');
-const uuid = require('uuid');
+const { v4: uuidv4 } = require('uuid');
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const strings = require('../strings.json')
+
 
 exports.googleLogin = async (req, res) => {
-  const { tokenId, email, firstName, lastName } = req.body;
+  const { email, firstName, lastName } = req.body;
 
   try {
-    const ticket = await client.verifyIdToken({
-      idToken: tokenId,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
-
-    const payload = ticket.getPayload();
-
-    let user = await User.findOne({ email });
+    let user = await User.findOne({email});
 
     if (!user) {
       user = new User({
+        userId: uuidv4(),
         email,
         firstName,
         lastName,
+        role: 'guest',
       });
 
       await user.save();
     }
-
     const token = jwt.sign(
       { id: user._id },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
 
-    res.status(200).json({ token });
+    return res.status(200).json({ message: strings.LOGIN_SUCCESSFUL });
   } catch (error) {
-    console.error(error);
+    console.error('Error in googleLogin:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 exports.signup = async (req, res) => {
   const { username, email, password } = req.body;
@@ -48,7 +45,7 @@ exports.signup = async (req, res) => {
       return res.status(400).json({ message: 'User already exists' });
     }
 
-    const user = new User({ username, email, password });
+    const user = new User({ username, email, password, role: 'guest' });
     await user.save();
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });

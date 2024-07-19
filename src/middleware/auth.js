@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const acl = require('../controllers/setup/acl');
 
 const auth = (req, res, next) => {
   const token = req.header('Authorization').replace('Bearer ', '');
@@ -15,4 +16,12 @@ const auth = (req, res, next) => {
   }
 };
 
-module.exports = auth;
+const checkRole = (role) => (req, res, next) => {
+  acl.hasRole(req.user, role, (err, hasRole) => {
+    if (err) return res.status(500).send(err);
+    if (!hasRole) return res.status(403).send('Permission denied');
+    next();
+  });
+};
+
+module.exports = { auth, checkRole };
