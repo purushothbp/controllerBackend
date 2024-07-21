@@ -5,6 +5,7 @@ const cors = require('cors');
 const authRoutes = require('./routes/auth');
 const productRoutes = require('./routes/products');
 const adminRoutes = require('./routes/admin');
+const userRoutes =  require('./routes/user.js')
 
 dotenv.config();
 
@@ -25,6 +26,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api',userRoutes)
 
 const PORT = process.env.PORT || 3003;
 app.listen(PORT, () => {

@@ -5,12 +5,11 @@ const { v4: uuidv4 } = require('uuid');
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const strings = require('../strings.json')
 
-
 exports.googleLogin = async (req, res) => {
   const { email, firstName, lastName } = req.body;
 
   try {
-    let user = await User.findOne({email});
+    let user = await User.findOne({ email });
 
     if (!user) {
       user = new User({
@@ -23,18 +22,22 @@ exports.googleLogin = async (req, res) => {
 
       await user.save();
     }
-    const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' }
-    );
 
-    return res.status(200).json({ message: strings.LOGIN_SUCCESSFUL });
+    console.log('User UUID:', user.uuid); 
+
+    return res.status(200).json({
+      message: 'Login successful',
+      user: {
+        uuid: user.uuid,
+        role:user.role
+      },
+    });
   } catch (error) {
     console.error('Error in googleLogin:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 
 exports.signup = async (req, res) => {
@@ -45,11 +48,19 @@ exports.signup = async (req, res) => {
       return res.status(400).json({ message: 'User already exists' });
     }
 
-    const user = new User({ username, email, password, role: 'guest' });
+    const user = new User({ username, email, password, role: 'guest', userId: uuidv4() });
     await user.save();
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    res.status(201).json({ token });
+    res.status(201).json({
+      token,
+      user: {
+        uuid: user.userId,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+      },
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
@@ -64,7 +75,15 @@ exports.login = async (req, res) => {
     }
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    res.status(200).json({ token });
+    res.status(200).json({
+      token,
+      user: {
+        uuid: user.userId,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+      },
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
