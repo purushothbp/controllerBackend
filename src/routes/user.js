@@ -1,7 +1,7 @@
 const express = require('express');
-const { updateUser } = require('../controllers/user/user');
 const router = express.Router();
+const getUser = require('../controllers/user/fetchUsers')
 
-router.put('/users/:userId', updateUser);
+router.get('/users/:userId',getUser );
 
 module.exports = router;

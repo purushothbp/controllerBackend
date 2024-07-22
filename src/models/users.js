@@ -4,9 +4,9 @@ const uuid = require('uuid');
 
 const userSchema = new mongoose.Schema({
   uuid: { type: String, default: uuid.v4, unique: true },
-  username: { type: String },
+  firstname:{type:String},
+  lastname:{type:String},
   email: { type: String, required: true, unique: true },
-  password: { type: String },
   role: { type: String, enum: ['admin', 'learner', 'guest'], default: 'guest' }
 });
 

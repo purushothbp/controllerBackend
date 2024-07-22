@@ -23,20 +23,29 @@ exports.googleLogin = async (req, res) => {
       await user.save();
     }
 
+    // Generate JWT token
+    const jwt_token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
     console.log('User UUID:', user.uuid); 
 
     return res.status(200).json({
       message: 'Login successful',
       user: {
-        uuid: user.uuid,
-        role:user.role
+        uuid: user.userId,
+        role: user.role,
       },
+      token:jwt_token
     });
   } catch (error) {
     console.error('Error in googleLogin:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 
 
