@@ -12,14 +12,26 @@ router.get('/', async (req, res) => {
   }
 });
 
+router.get('/:id', async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+    res.status(200).json(product);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error });
+  }
+});
+
 router.post('/', async (req, res) => {
-  const { name, description, price, imageUrl, userId } = req.body;
-  const newProduct = new Product({ name, description, price, imageUrl, userId });
+  const { title, description, price, imageUrl,instructor,active } = req.body;
+  const newProduct = new Product({ title, description, price, imageUrl,instructor,active });
   try {
     await newProduct.save();
     res.status(201).json(newProduct);
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error',error });
   }
 });
 
