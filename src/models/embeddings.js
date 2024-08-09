@@ -1,10 +1,23 @@
-const mongoose = require('mongoose');
+import { ChromaClient } from 'chromadb';
 
-const embeddingSchema = new mongoose.Schema({
-  productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
-  embedding: { type: [Number], required: true }
-});
+const chroma = new ChromaClient({ path: 'http://localhost:8000' });
 
-const Embedding = mongoose.model('Embedding', embeddingSchema);
+const embeddingCollection = await chroma.createCollection({ name: 'embeddings' });
 
-module.exports = Embedding;
+export const createEmbedding = async (productId, embedding) => {
+  const embeddingId = uuidv4();
+  
+  await embeddingCollection.add({
+    ids: [embeddingId],
+    embeddings: [embedding],
+    documents: [{ embeddingId, productId }],
+  });
+};
+
+export const findEmbeddingsByProductId = async (productId) => {
+  const queryData = await embeddingCollection.query({
+    queryTexts: [productId],
+  });
+
+  return queryData.documents;
+};

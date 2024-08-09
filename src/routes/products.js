@@ -1,26 +1,32 @@
+// src/routes/products.js
 const express = require('express');
-const Product = require('../models/products');
-const Embedding = require('../models/embeddings');
+const { v4: uuidv4 } = require('uuid');
 const { generateEmbedding } = require('../controllers/chat/utils/ragEmbeddings');
 
 const router = express.Router();
 
 router.get('/', async (req, res) => {
+  const { productCollection } = req.app.locals.collections;
   try {
-    const products = await Product.find();
-    res.status(200).json(products);
+    const queryData = await productCollection.query({
+      queryTexts: [],
+    });
+    res.status(200).json(queryData.documents);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
 });
 
 router.get('/:id', async (req, res) => {
+  const { productCollection } = req.app.locals.collections;
   try {
-    const product = await Product.findById(req.params.id);
-    if (!product) {
+    const queryData = await productCollection.query({
+      queryTexts: [req.params.id],
+    });
+    if (queryData.documents.length === 0) {
       return res.status(404).json({ message: 'Product not found' });
     }
-    res.status(200).json(product);
+    res.status(200).json(queryData.documents[0]);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error });
   }
@@ -28,6 +34,7 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   const { title, description, price, imageUrl, instructor, active, userId } = req.body;
+  const { productCollection, embeddingCollection } = req.app.locals.collections;
 
   if (!title || !description || !price || !imageUrl || !instructor || active === undefined || !userId) {
     return res.status(400).json({ message: 'Missing required fields' });
@@ -41,24 +48,19 @@ router.post('/', async (req, res) => {
       return res.status(500).json({ message: 'Error generating embedding', error: embeddingError });
     }
 
-    const newProduct = new Product({ 
-      title, 
-      description, 
-      price, 
-      imageUrl, 
-      instructor, 
-      active,
-      userId
+    const productId = uuidv4();
+    await productCollection.add({
+      ids: [productId],
+      documents: [{ productId, title, description, price, imageUrl, instructor, active, userId }],
     });
-    await newProduct.save();
 
-    const newEmbedding = new Embedding({
-      productId: newProduct._id,
-      embedding: embeddingArray
+    await embeddingCollection.add({
+      ids: [uuidv4()],
+      embeddings: [embeddingArray],
+      documents: [{ productId }],
     });
-    await newEmbedding.save();
 
-    res.status(201).json(newProduct);
+    res.status(201).json({ productId, title, description, price, imageUrl, instructor, active, userId });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error });
   }

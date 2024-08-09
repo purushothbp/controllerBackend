@@ -1,7 +1,6 @@
-const Question = require('../../models/questions');
 const { OpenAI } = require('openai');
 const dotenv = require('dotenv');
-const { MongoClient } = require('mongodb');
+const { ChromaClient } = require('chromadb');
 
 dotenv.config();
 
@@ -9,10 +8,21 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const client = new MongoClient(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+const chroma = new ChromaClient({ path: 'http://localhost:8000' });
+
+async function initializeCollections() {
+  let questionCollection, embeddingCollection;
+  try {
+    questionCollection = await chroma.createCollection({ name: 'questions' });
+    embeddingCollection = await chroma.createCollection({ name: 'embeddings' });
+    console.log('Collections created or fetched successfully');
+  } catch (error) {
+    console.error('Error creating or fetching collections:', error.message);
+  }
+  return { questionCollection, embeddingCollection };
+}
+
+const collectionsPromise = initializeCollections();
 
 async function generateQueryEmbedding(question) {
   const response = await openai.embeddings.create({
@@ -30,12 +40,12 @@ function cosineSimilarity(vecA, vecB) {
 }
 
 async function findRelevantChunks(queryEmbedding) {
-  await client.connect();
-  const database = client.db();
-  const collection = database.collection('embeddings');
+  const { embeddingCollection } = await collectionsPromise;
+  const embeddings = await embeddingCollection.query({
+    queryEmbeddings: [queryEmbedding],
+  });
 
-  const results = await collection.find().toArray();
-  const similarities = results.map(doc => ({
+  const similarities = embeddings.documents.map(doc => ({
     ...doc,
     similarity: cosineSimilarity(queryEmbedding, doc.embedding),
   }));
@@ -58,21 +68,27 @@ async function generateAnswer(question, contextDocuments) {
   return response.choices[0].message.content.trim();
 }
 
-exports.askQuestion = async (req, res) => {
+async function askQuestion(req, res) {
   const { question } = req.body;
 
   try {
-    const dbResponse = await Question.findOne({ question });
+    const { questionCollection } = await collectionsPromise;
+    const queryData = await questionCollection.query({
+      queryTexts: [question],
+    });
 
-    if (dbResponse) {
-      return res.json(dbResponse);
+    if (queryData.documents.length > 0) {
+      return res.json(queryData.documents[0]);
     } else {
       const queryEmbedding = await generateQueryEmbedding(question);
       const relevantChunks = await findRelevantChunks(queryEmbedding);
       const generatedAnswer = await generateAnswer(question, relevantChunks);
 
-      const newQuestion = new Question({ question, answer: generatedAnswer });
-      await newQuestion.save();
+      await questionCollection.add({
+        ids: [question],
+        embeddings: [queryEmbedding],
+        documents: [{ question, answer: generatedAnswer }],
+      });
 
       return res.json({ question, answer: generatedAnswer });
     }
@@ -80,4 +96,8 @@ exports.askQuestion = async (req, res) => {
     console.error('Error processing question:', error);
     res.status(500).send({ error: 'An error occurred while processing your request.' });
   }
+}
+
+module.exports = {
+  askQuestion,
 };

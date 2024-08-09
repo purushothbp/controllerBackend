@@ -1,15 +1,22 @@
-const mongoose = require('mongoose');
+import { ChromaClient } from 'chromadb';
 
-const productSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  description: { type: String, required: true },
-  price: { type: Number, required: true },
-  imageUrl: { type: String, required: true },
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  active:{type:Boolean, required:true ,enum: ['true', 'false'], default: 'true' },
-  instructor:{type:String, required:true}
-});
+const chroma = new ChromaClient({ path: 'http://localhost:8000' });
 
-const Product = mongoose.model('Product', productSchema);
+const productCollection = await chroma.createCollection({ name: 'products' });
 
-module.exports = Product;
+export const createProduct = async (title, description, price, imageUrl, userId, instructor, active = true) => {
+  const productId = uuidv4();
+  
+  await productCollection.add({
+    ids: [productId],
+    documents: [{ productId, title, description, price, imageUrl, userId, instructor, active }],
+  });
+};
+
+export const findProducts = async () => {
+  const queryData = await productCollection.query({
+    queryTexts: [], 
+  });
+
+  return queryData.documents;
+};

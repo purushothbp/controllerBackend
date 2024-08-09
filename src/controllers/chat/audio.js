@@ -22,7 +22,6 @@ AWS.config.update({
 
 const lexruntime = new AWS.LexRuntime();
 
-// Configure multer for handling file uploads and storing in /uploadedfile
 const uploadPath = path.join(__dirname, 'uploadedfile');
 if (!fs.existsSync(uploadPath)) {
   fs.mkdirSync(uploadPath, { recursive: true });
@@ -52,17 +51,16 @@ const uploadAudio = (req, res) => {
   console.log(`Input file path: ${inputFilePath}`);
   console.log(`Output file path: ${outputFilePath}`);
 
-  // Ensure the file exists
   if (!fs.existsSync(inputFilePath)) {
     return res.status(404).send('File not found.');
   }
 
   ffmpeg(inputFilePath)
-    .inputFormat('mp3') // Ensure this matches the actual file format
+    .inputFormat('mp3') 
     .audioCodec('pcm_s16le')
     .audioFrequency(16000)
     .audioChannels(1)
-    .format('wav') // Output format
+    .format('wav') 
     .on('start', (commandLine) => {
       console.log('Spawned FFmpeg with command: ' + commandLine);
     })

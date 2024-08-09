@@ -1,28 +1,36 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
-const uuid = require('uuid');
+const { v4: uuidv4 } = require('uuid');
+const { initializeCollections } = require('./chromaClient');
 
-const userSchema = new mongoose.Schema({
-  uuid: { type: String, default: uuid.v4, unique: true },
-  firstname:{type:String},
-  lastname:{type:String},
-  email: { type: String, required: true, unique: true },
-  role: { type: String, enum: ['admin', 'learner', 'guest'], default: 'guest' }
+let userCollection;
+
+initializeCollections().then(collections => {
+  userCollection = collections.userCollection;
 });
 
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
-    return next();
+const createUser = async (firstname, lastname, email, role = 'guest') => {
+  if (!userCollection) {
+    throw new Error('User collection not initialized');
   }
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-  next();
-});
-
-userSchema.methods.matchPassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+  const userId = uuidv4();
+  
+  await userCollection.add({
+    ids: [userId],
+    documents: [{ userId, firstname, lastname, email, role }],
+  });
 };
 
-const User = mongoose.model('User', userSchema);
+const findUserByEmail = async (email) => {
+  if (!userCollection) {
+    throw new Error('User collection not initialized');
+  }
+  const queryData = await userCollection.query({
+    queryTexts: [email],
+  });
 
-module.exports = User;
+  return queryData.documents[0];
+};
+
+module.exports = {
+  createUser,
+  findUserByEmail,
+};

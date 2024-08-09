@@ -1,14 +1,21 @@
-  const mongoose = require('mongoose');
+import { ChromaClient } from 'chromadb';
 
-  const QuestionSchema = new mongoose.Schema({
-    question: {
-      type: String,
-      required: true,
-    },
-    answer: {
-      type: String,
-      required: true,
-    },
-  }, { timestamps: true });
+const chroma = new ChromaClient({ path: 'http://localhost:8000' });
 
-  module.exports = mongoose.model('Question', QuestionSchema);
+const questionCollection = await chroma.createCollection({ name: 'questions' });
+
+export const createQuestion = async (question, answer) => {
+  const questionId = uuidv4();
+  
+  await questionCollection.add({
+    ids: [questionId],
+    documents: [{ questionId, question, answer }],
+  });
+};
+
+export const findQuestions = async () => {
+  const queryData = await questionCollection.query({
+  });
+
+  return queryData.documents;
+};
